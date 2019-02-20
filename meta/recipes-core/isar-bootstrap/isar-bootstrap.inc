@@ -186,6 +186,14 @@ do_generate_keyring() {
                --no-tty --homedir "${DL_DIR}"  --import "$keyfile"
         done
     fi
+    # Export all keys from default keyring
+    touch "${APTKEYRING}.default"
+    find /usr/share/keyrings/ -name '*.gpg' -exec \
+       gpg --keyring {} -a --export >> "${APTKEYRING}.default" \;
+
+    # Reimport all keys into the new keyring
+    gpg --keyring "${APTKEYRING}" --no-default-keyring --import "${APTKEYRING}.default"
+
     # Ultimatively trust all keys:
     gpg --keyring "${APTKEYRING}" --list-keys --with-colons | \
        sed -E -n -e 's/^fpr:::::::::([0-9A-F]+):$/\1:6:/p' | \
