@@ -40,7 +40,10 @@ python () {
         d.setVar("DEBOOTSTRAP_KEYRING", "--keyring ${APTKEYRING}")
         for key in distro_apt_keys.split():
             url = urlparse(key)
-            filename = ''.join([wd, url.path])
+            if "https://" in key or "http://" in key:
+                filename = os.path.basename(url.path)
+            else:
+                filename = ''.join([wd, url.path])
             d.appendVar("SRC_URI", " %s" % key)
             d.appendVar("APTKEYFILES", " %s" % filename)
     if bb.utils.to_boolean(d.getVar('ISAR_USE_CACHED_BASE_REPO')):
