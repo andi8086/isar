@@ -195,9 +195,9 @@ do_generate_keyring() {
     gpg --keyring "${APTKEYRING}" --no-default-keyring --import "${APTKEYRING}.default"
 
     # Ultimatively trust all keys:
-    gpg --keyring "${APTKEYRING}" --list-keys --with-colons | \
+    gpg --no-default-keyring --keyring "${APTKEYRING}" --list-keys --with-colons | \
        sed -E -n -e 's/^fpr:::::::::([0-9A-F]+):$/\1:6:/p' | \
-       gpg --import-ownertrust --keyring "${APTKEYRING}"
+       gpg --no-default-keyring --import-ownertrust --keyring "${APTKEYRING}"
 }
 addtask generate_keyring before do_build after do_unpack
 
