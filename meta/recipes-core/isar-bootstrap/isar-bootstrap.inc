@@ -188,16 +188,22 @@ do_generate_keyring() {
     fi
     # Export all keys from default keyring
     touch "${APTKEYRING}.default"
-    find /usr/share/keyrings/ -name '*.gpg' -exec \
+    find /usr/share/keyrings/ -name '*.gpg' ! -name '*-removed-*' -exec \
        gpg --keyring {} -a --export >> "${APTKEYRING}.default" \;
 
     # Reimport all keys into the new keyring
     gpg --keyring "${APTKEYRING}" --no-default-keyring --import "${APTKEYRING}.default"
 
     # Ultimatively trust all keys:
-    gpg --no-default-keyring --keyring "${APTKEYRING}" --list-keys --with-colons | \
+    gpg --no-default-keyring --homedir "${DL_DIR}" \
+       --keyring "${APTKEYRING}" --list-keys --with-colons | \
        sed -E -n -e 's/^fpr:::::::::([0-9A-F]+):$/\1:6:/p' | \
-       gpg --no-default-keyring --import-ownertrust --keyring "${APTKEYRING}"
+       gpg --no-default-keyring --homedir "${DL_DIR}" \
+        --import-ownertrust --keyring "${APTKEYRING}"
+
+    # Apt does not use the trustfile, so copy the final keyring to TMPDIR to
+    # later copy it to /etc/apt/trusted.gpg.d/ when installing in the target rootfs
+    cp --remove-destination "${APTKEYRING}" "${TMPDIR}/isar-trusted.gpg"
 }
 addtask generate_keyring before do_build after do_unpack
 

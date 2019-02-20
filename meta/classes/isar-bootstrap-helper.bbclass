@@ -93,6 +93,8 @@ setup_root_file_system() {
     echo "Package: *\nPin: release n=${DEBDISTRONAME}\nPin-Priority: 1000" | \
         sudo tee "$ROOTFSDIR/etc/apt/preferences.d/isar" >/dev/null
 
+    sudo cp --remove-destination "${TMPDIR}/isar-trusted.gpg" "$ROOTFSDIR/etc/apt/trusted.gpg.d/"
+
     if [ ${COPYISARAPT} ]; then
         sudo cp -Trpfx ${REPO_ISAR_DIR}/${DISTRO} $ROOTFSDIR/isar-apt
     else
