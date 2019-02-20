@@ -186,6 +186,10 @@ do_generate_keyring() {
                --no-tty --homedir "${DL_DIR}"  --import "$keyfile"
         done
     fi
+    # Ultimatively trust all keys:
+    gpg --keyring "${APTKEYRING}" --list-keys --with-colons | \
+       sed -E -n -e 's/^fpr:::::::::([0-9A-F]+):$/\1:6:/p' | \
+       gpg --import-ownertrust --keyring "${APTKEYRING}"
 }
 addtask generate_keyring before do_build after do_unpack
 
