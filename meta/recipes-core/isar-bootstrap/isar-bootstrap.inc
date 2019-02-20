@@ -23,10 +23,8 @@ APTSRCS = "${WORKDIR}/apt-sources"
 APTSRCS_INIT = "${WORKDIR}/apt-sources-init"
 BASEAPTSRCS = "${WORKDIR}/base-apt-sources"
 APTKEYFILES = ""
-APTKEYRING = "${WORKDIR}/apt-keyring.gpg"
-DEBOOTSTRAP_KEYRING = ""
 DEPLOY_ISAR_BOOTSTRAP ?= ""
-DISTRO_BOOTSTRAP_BASE_PACKAGES = "locales"
+DISTRO_BOOTSTRAP_BASE_PACKAGES = "locales gnupg2 apt-transport-https ca-certificates"
 
 DISTRO_APT_PREMIRRORS ?= "${@ "http://ftp\.(\S+\.)?debian.org  file:///${REPO_BASE_DIR} \n" if bb.utils.to_boolean(d.getVar('ISAR_USE_CACHED_BASE_REPO')) else "" }"
 
@@ -37,7 +35,6 @@ python () {
     distro_apt_keys = d.getVar("DISTRO_APT_KEYS", False)
     wd = d.getVar("WORKDIR", True)
     if distro_apt_keys:
-        d.setVar("DEBOOTSTRAP_KEYRING", "--keyring ${APTKEYRING}")
         for key in distro_apt_keys.split():
             url = urlparse(key)
             if "https://" in key or "http://" in key:
@@ -49,7 +46,6 @@ python () {
     if bb.utils.to_boolean(d.getVar('ISAR_USE_CACHED_BASE_REPO')):
         own_pub_key = d.getVar("BASE_REPO_KEY", False)
         if own_pub_key:
-            d.setVar("DEBOOTSTRAP_KEYRING", "--keyring ${APTKEYRING}")
             for key in own_pub_key.split():
                 url = urlparse(key)
                 filename = ''.join([wd, url.path])
@@ -181,9 +177,12 @@ do_generate_keyring[dirs] = "${DL_DIR}"
 do_generate_keyring[vardeps] += "DISTRO_APT_KEYS"
 do_generate_keyring() {
     if [ -n "${@d.getVar("APTKEYFILES", True) or ""}" ]; then
+        APTKEYTMPDIR="${TMPDIR}"/aptkeys
+        [ -d "${APTKEYTMPDIR}" ] || { mkdir -p "${APTKEYTMPDIR}"; \
+           chmod 777 "${APTKEYTMPDIR}"; }
         for keyfile in ${@d.getVar("APTKEYFILES", True)}; do
-           gpg --no-default-keyring --keyring "${APTKEYRING}" \
-               --no-tty --homedir "${DL_DIR}"  --import "$keyfile"
+           cp "$keyfile" "${APTKEYTMPDIR}"/"$(basename "$keyfile")"
+           sudo apt-key add "$keyfile"
         done
     fi
 }
@@ -225,7 +224,6 @@ isar_bootstrap() {
             if [ ${IS_HOST} ]; then
                 ${DEBOOTSTRAP} $debootstrap_args \
                                ${@get_distro_components_argument(d, True)} \
-                               ${DEBOOTSTRAP_KEYRING} \
                                "${@get_distro_suite(d, True)}" \
                                "${ROOTFSDIR}" \
                                "${@get_distro_source(d, True)}"
@@ -234,7 +232,6 @@ isar_bootstrap() {
                  "${DEBOOTSTRAP}" $debootstrap_args \
                                   --arch="${DISTRO_ARCH}" \
                                   ${@get_distro_components_argument(d, False)} \
-                                  ${DEBOOTSTRAP_KEYRING} \
                                   "${@get_distro_suite(d, False)}" \
                                   "${ROOTFSDIR}" \
                                   "${@get_distro_source(d, False)}"
@@ -248,7 +245,7 @@ isar_bootstrap() {
             if [ "${ISAR_USE_CACHED_BASE_REPO}" = "1" ]; then
                 sed -e "s#{BASE_DISTRO}#"${BASE_DISTRO}"#g" \
                     -e "s#{BASE_DISTRO_CODENAME}#"${BASE_DISTRO_CODENAME}"#g" \
-	            -i ${BASEAPTSRCS}
+                    -i ${BASEAPTSRCS}
                 mkdir -p ${ROOTFSDIR}/base-apt
                 sudo mount --bind ${REPO_BASE_DIR} ${ROOTFSDIR}/base-apt
                 install -v -m644 "${BASEAPTSRCS}" \

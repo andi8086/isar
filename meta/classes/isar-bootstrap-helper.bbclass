@@ -119,6 +119,12 @@ setup_root_file_system() {
     export LANG=C
     export LANGUAGE=C
     export LC_ALL=C
+    for keyfile in ${TMPDIR}/aptkeys/*
+    do
+        cp $keyfile "$ROOTFSDIR"/tmp/$(basename $keyfile)
+        sudo -E chroot "$ROOTFSDIR" /usr/bin/apt-key add /tmp/$(basename $keyfile)
+        rm "$ROOTFSDIR"/tmp/$(basename $keyfile)
+    done
     sudo -E chroot "$ROOTFSDIR" /usr/bin/apt-get update \
         -o Dir::Etc::sourcelist="sources.list.d/isar-apt.list" \
         -o Dir::Etc::sourceparts="-" \
@@ -128,6 +134,7 @@ setup_root_file_system() {
         sudo -E chroot "$ROOTFSDIR" /usr/bin/dpkg --add-architecture ${DISTRO_ARCH}
         sudo -E chroot "$ROOTFSDIR" /usr/bin/apt-get update
     fi
+    sudo -E chroot "$ROOTFSDIR" /usr/bin/apt-key update
     sudo -E chroot "$ROOTFSDIR" \
         /usr/bin/apt-get ${APT_ARGS} --download-only $PACKAGES \
             ${IMAGE_TRANSIENT_PACKAGES}
